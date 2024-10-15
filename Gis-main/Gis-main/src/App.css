@@ -1,0 +1,33 @@
+.App {
+  text-align: center;
+}
+
+.app-container {
+  min-height: 100vh;  /* Makes sure the container takes the full viewport height */
+  width: 100%;        /* Ensure the container spans the full width of the screen */
+  background-color: #ffffff; /* Same as the website background */
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(6px + 2vmin);
+  color: rgb(7, 7, 7);
+}
+
+.components-container {
+  display: flex; /* Align components in a row */
+  align-items: flex-start; /* Align items at the top */
+  width: 100%; /* Take full width */
+  padding: 20px; /* Add padding */
+}
+
+.options-container {
+  margin-right: 20px; /* Space between Options and Tech Companies */
+  flex: 1; /* Allow Options to take available space */
+  max-width: 300px; /* Optional: Limit width of Options */
+}
