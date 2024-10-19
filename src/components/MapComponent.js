@@ -2,187 +2,202 @@
 import React, { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import Autolinker from 'autolinker';
+import ReactDOMServer from 'react-dom/server';
+import 'leaflet.heat';
 
-let map1, map2, map3, map4; // Add map4 for the heatmap
+let map1, map2, map3, map4;
 
-const MapComponent = ({ populationRange }) => {  
-  const demographicLayerRef = useRef(null); // Reference to store demographic layer
+const MapComponent = ({ populationRange, ageGroup, city }) => {  
+  const demographicLayerRef1 = useRef(null);
+  const demographicLayerRef3 = useRef(null);
 
   useEffect(() => {
-    // Map 1: Demographic data
+    // Initialize map1
     if (!map1) {
-      map1 = L.map('map1', {
-        zoomControl: false,
-        maxZoom: 28,
-        minZoom: 1,
-      }).fitBounds([[29.58558648296286, 31.59799699704964], [33.50312293796286, 37.72679302032426]]);
-
-      L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-      }).addTo(map1);
+      map1 = L.map('map1', { zoomControl: false, maxZoom: 28, minZoom: 1 })
+        .fitBounds([[29.58558648296286, 31.59799699704964], [33.50312293796286, 37.72679302032426]]);
+      L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map1);
     }
 
-    // Remove existing demographic layer before adding the new filtered data
-    if (demographicLayerRef.current) {
-      map1.removeLayer(demographicLayerRef.current);
+    if (demographicLayerRef1.current) {
+      map1.removeLayer(demographicLayerRef1.current);
     }
 
-    // Add new demographic data filtered based on population range
-    demographicLayerRef.current = L.geoJSON(json_CSVdemographic_2, {
-      filter: (feature) => {
-        const population = feature.properties['סהכ'];
-        return population >= populationRange;
-      },
-      pointToLayer: (feature, latlng) => {
-        return L.circleMarker(latlng, {
+    demographicLayerRef1.current = L.geoJSON(json_CSVdemographic_2, {
+      filter: feature => feature.properties['סהכ'] >= populationRange,
+      pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+        radius: 4.0,
+        fillColor: 'rgba(231,74,72,1.0)',
+        color: 'rgba(35,35,35,1.0)',
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 1,
+      }),
+      onEachFeature: (feature, layer) => pop_CSVdemographic_2(feature, layer, ageGroup),
+    }).addTo(map1);
+
+    // Initialize map3 with both demographic and tech data
+    if (!map3) {
+      map3 = L.map('map3', { zoomControl: false, maxZoom: 28, minZoom: 1 })
+        .fitBounds([[29.58558648296286, 31.59799699704964], [33.50312293796286, 37.72679302032426]]);
+      L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map3);
+    }
+
+    if (demographicLayerRef3.current) {
+      map3.removeLayer(demographicLayerRef3.current);
+    }
+
+    // Combine demographic and tech data for Map 3
+    demographicLayerRef3.current = L.geoJSON(json_CSVdemographic_2, {
+      pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+        radius: 4.0,
+        fillColor: 'rgba(231,74,72,1.0)',
+        color: 'rgba(35,35,35,1.0)',
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 1
+      }),
+      onEachFeature: (feature, layer) => pop_CSVdemographic_2(feature, layer, ageGroup),
+    }).addTo(map3);
+
+    L.geoJSON(json_CSVTech_1, {
+      pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+        radius: 4.0,
+        fillColor: 'rgba(243,229,166,1.0)',
+        color: 'rgba(35,35,35,1.0)',
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 1
+      }),
+      onEachFeature: pop_CSVTech_1,
+    }).addTo(map3);
+
+  }, [populationRange, ageGroup]);
+
+  // Zoom and popup functionality
+  useEffect(() => {
+    const zoomAndAutoPopup = (map, layerRef, coords) => {
+      map.flyTo(coords, 13, { duration: 2 });
+      if (layerRef.current) {
+        layerRef.current.eachLayer(layer => {
+          const { lat, lng } = layer.getLatLng();
+          if (Math.abs(lat - coords[0]) < 0.01 && Math.abs(lng - coords[1]) < 0.01) {
+            layer.openPopup();
+          }
+        });
+      }
+    };
+
+    if (city) {
+      if (map1) zoomAndAutoPopup(map1, demographicLayerRef1, city.coordinates);
+      if (map2) map2.flyTo(city.coordinates, 13, { duration: 2 });
+      if (map3) zoomAndAutoPopup(map3, demographicLayerRef3, city.coordinates);
+      if (map4) map4.flyTo(city.coordinates, 13, { duration: 2 });
+    }
+  }, [city]);
+
+  // Initialize map2 and map4
+  useEffect(() => {
+    if (!map2) {
+      map2 = L.map('map2', { zoomControl: false, maxZoom: 28, minZoom: 1 })
+        .fitBounds([[29.58558648296286, 31.59799699704964], [33.50312293796286, 37.72679302032426]]);
+      L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map2);
+
+      L.geoJSON(json_CSVTech_1, {
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
           radius: 4.0,
-          fillColor: 'rgba(231,74,72,1.0)',
+          fillColor: 'rgba(243,229,166,1.0)',
           color: 'rgba(35,35,35,1.0)',
           weight: 1,
           opacity: 1,
-          fillOpacity: 1,
-        });
-      },
-      onEachFeature: pop_CSVdemographic_2,
-    }).addTo(map1);
-  }, [populationRange]);
-
-  // Map 2: Tech company data
-  useEffect(() => {
-    if (!map2) {
-      map2 = L.map('map2', {
-        zoomControl: false,
-        maxZoom: 28,
-        minZoom: 1,
-      }).fitBounds([[29.58558648296286, 31.59799699704964], [33.50312293796286, 37.72679302032426]]);
-
-      L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-      }).addTo(map2);
-
-      L.geoJSON(json_CSVTech_1, {
-        pointToLayer: (feature, latlng) => {
-          return L.circleMarker(latlng, {
-            radius: 4.0,
-            fillColor: 'rgba(243,229,166,1.0)',
-            color: 'rgba(35,35,35,1.0)',
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 1
-          });
-        },
-        onEachFeature: pop_CSVTech_1
+          fillOpacity: 1
+        }),
+        onEachFeature: pop_CSVTech_1,
       }).addTo(map2);
     }
 
-    // Map 3: Both demographic and tech company data
-    if (!map3) {
-      map3 = L.map('map3', {
-        zoomControl: false,
-        maxZoom: 28,
-        minZoom: 1,
-      }).fitBounds([[29.58558648296286, 31.59799699704964], [33.50312293796286, 37.72679302032426]]);
-
-      L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-      }).addTo(map3);
-
-      // Add demographic and tech layers to map3
-      L.geoJSON(json_CSVdemographic_2, {
-        pointToLayer: (feature, latlng) => {
-          return L.circleMarker(latlng, {
-            radius: 4.0,
-            fillColor: 'rgba(231,74,72,1.0)',
-            color: 'rgba(35,35,35,1.0)',
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 1
-          });
-        },
-        onEachFeature: pop_CSVdemographic_2
-      }).addTo(map3);
-
-      L.geoJSON(json_CSVTech_1, {
-        pointToLayer: (feature, latlng) => {
-          return L.circleMarker(latlng, {
-            radius: 4.0,
-            fillColor: 'rgba(243,229,166,1.0)',
-            color: 'rgba(35,35,35,1.0)',
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 1
-          });
-        },
-        onEachFeature: pop_CSVTech_1
-      }).addTo(map3);
-    }
-
-    // Map 4: Heatmap combining both demographic and tech data
     if (!map4) {
-      map4 = L.map('map4', {
-        zoomControl: false,
-        maxZoom: 28,
-        minZoom: 1,
-      }).fitBounds([[29.58558648296286, 31.59799699704964], [33.50312293796286, 37.72679302032426]]);
+      map4 = L.map('map4', { zoomControl: false, maxZoom: 28, minZoom: 1 })
+        .fitBounds([[29.58558648296286, 31.59799699704964], [33.50312293796286, 37.72679302032426]]);
+      L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map4);
 
-      L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-      }).addTo(map4);
-
-      // Combine data points for heatmap
-      const heatPoints = [];
-
-      // Add demographic data points
-      json_CSVdemographic_2.features.forEach(feature => {
-        const lat = feature.geometry.coordinates[1];
-        const lng = feature.geometry.coordinates[0];
-        const intensity = feature.properties['סהכ'] / 1000; // Use population as intensity
-        heatPoints.push([lat, lng, intensity]);
+      const heatPoints = json_CSVdemographic_2.features.map(feature => {
+        const [lng, lat] = feature.geometry.coordinates;
+        const intensity = feature.properties['סהכ'] / 1000;
+        return [lat, lng, intensity];
       });
-
-      // Add tech company data points
-      json_CSVTech_1.features.forEach(feature => {
-        const lat = feature.geometry.coordinates[1];
-        const lng = feature.geometry.coordinates[0];
-        const intensity = 0.5; // You can adjust the intensity for tech companies if needed
-        heatPoints.push([lat, lng, intensity]);
-      });
-
-      // Create heatmap layer
-      L.heatLayer(heatPoints, {
-        radius: 25,
-        blur: 15,
-        maxZoom: 17,
-      }).addTo(map4);
+      L.heatLayer(heatPoints, { radius: 25, blur: 15, maxZoom: 17 }).addTo(map4);
     }
-  }, []); // Initial effect for maps 2, 3, and 4
+  }, []);
 
-  // Render the four maps side by side
   return (
     <div style={{ display: 'flex', gap: '5px' }}>
-      <div id="map1" style={{ height: '80vh', width: '25%' }}>
-        <h1>Demographic Data</h1>
+      <div id="map1" style={{ position: 'relative', height: '80vh', width: '25%' }}>
+        <h1 style={{ position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'white', padding: '10px 0', textAlign: 'center', zIndex: 1000 }}>
+          Demographic Data
+        </h1>
       </div>
-      <div id="map2" style={{ height: '80vh', width: '25%' }}>
-        <h1>Tech Company Data</h1>
+      <div id="map2" style={{ position: 'relative', height: '80vh', width: '25%' }}>
+        <h1 style={{ position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'white', padding: '10px 0', textAlign: 'center', zIndex: 1000 }}>
+          Tech Company Data
+        </h1>
       </div>
-      <div id="map3" style={{ height: '80vh', width: '25%' }}>
-        <h1>Combined Data</h1>
+      <div id="map3" style={{ position: 'relative', height: '80vh', width: '25%' }}>
+        <h1 style={{ position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'white', padding: '10px 0', textAlign: 'center', zIndex: 1000 }}>
+          Both Demographic and Tech Company Data
+        </h1>
       </div>
-      <div id="map4" style={{ height: '80vh', width: '25%' }}>
-        <h1>Heatmap (Demographic + Tech)</h1>
+      <div id="map4" style={{ position: 'relative', height: '80vh', width: '25%' }}>
+        <h1 style={{ position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'white', padding: '10px 0', textAlign: 'center', zIndex: 1000 }}>
+          Heatmap (Demographic + Tech)
+        </h1>
       </div>
     </div>
   );
 };
 
-// Popup functions remain unchanged
 const pop_CSVTech_1 = (feature, layer) => {
-  // Your existing code for tech company popup
+  const popupContent = (
+    <table dir="rtl" style={{ textAlign: 'right' }}>
+      <tr><td><strong>מספר חברה:</strong></td><td>{feature.properties['מספר חברה']}</td></tr>
+      <tr><td><strong>שם חברה:</strong></td><td>{feature.properties['שם חברה']}</td></tr>
+      <tr><td><strong>שם באנגלית:</strong></td><td>{feature.properties['שם באנגלית']}</td></tr>
+      <tr><td><strong>סטטוס חברה:</strong></td><td>{feature.properties['סטטוס חברה']}</td></tr>
+    </table>
+  );
+  layer.bindPopup(ReactDOMServer.renderToString(popupContent));
 };
 
-const pop_CSVdemographic_2 = (feature, layer) => {
-  // Your existing code for demographic popup
+const pop_CSVdemographic_2 = (feature, layer, ageGroup) => {
+  const properties = feature.properties;
+  const ageGroupKeys = ageGroup === 'All'
+    ? Object.keys(properties).filter(key => key.startsWith('גיל_'))
+    : [`גיל_${ageGroup.replace('-', '_').replace('+', 'פלוס')}`];
+
+  const ageGroupRows = ageGroupKeys.map(key => {
+    const label = key.replace('גיל_', '').replace('_', '-');
+    const formattedLabel = `גיל ${label.replace('פלוס', '+')}`;
+    const formattedNumber = properties[key]?.toLocaleString(); // Format the number with commas
+    return (
+      <tr key={key}>
+        <td style={{ textAlign: 'right' }}><strong>{formattedLabel}:</strong></td>
+        <td style={{ textAlign: 'left' }}>{formattedNumber}</td>
+      </tr>
+    );
+  });
+
+  const totalResidents = properties['סהכ']?.toLocaleString(); // Format total residents with commas
+  const popupContent = (
+    <table dir="rtl" style={{ textAlign: 'right' }}>
+      <tr><td><strong>שם ישוב:</strong></td><td style={{ textAlign: 'left' }}>{properties['שם_ישוב']}</td></tr>
+      <tr><td><strong>מספר תושבים:</strong></td><td style={{ textAlign: 'left' }}>{totalResidents}</td></tr>
+      {ageGroupRows}
+      <tr><td><strong>Latitude:</strong></td><td style={{ textAlign: 'left' }}>{properties['latitude']}</td></tr>
+      <tr><td><strong>Longitude:</strong></td><td style={{ textAlign: 'left' }}>{properties['longitude']}</td></tr>
+    </table>
+  );
+
+  layer.bindPopup(ReactDOMServer.renderToString(popupContent));
 };
 
 export default MapComponent;
